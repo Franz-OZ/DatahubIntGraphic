@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Circular Graphic</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f4f4f9;
+            font-family: Arial, sans-serif;
+        }
+        #backButton {
+            display: none;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 5px;
+        }
+        path {
+            transition: fill 0.3s, opacity 0.5s;
+            cursor: pointer;
+        }
+        path:hover {
+            fill-opacity: 0.7;
+        }
+        text {
+            pointer-events: none;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <svg id="circleGraphic" width="400" height="400" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+        <g id="circleContainer" transform="translate(200,200)"></g>
+    </svg>
+    <button id="backButton" onclick="goBack()">Back</button>
+
+    <script>
+        let history = [];
+        
+        const initialSections = {
+            "Theme 1": 3,
+            "Theme 2": 5,
+            "Theme 3": 4,
+            "Theme 4": 6,
+            "Theme 5": 2
+        };
+
+        function drawCircle(sections, level, hasCenter = false) {
+            const container = document.getElementById("circleContainer");
+            container.innerHTML = "";
+            
+            container.style.opacity = 0;
+            setTimeout(() => {
+                const radius = 180;
+                const angleStep = (2 * Math.PI) / (sections.length === 1 ? 1 : sections.length);
+                
+                sections.forEach((section, i) => {
+                    const startAngle = i * angleStep;
+                    const endAngle = (i + 1) * angleStep;
+                    const x1 = radius * Math.cos(startAngle);
+                    const y1 = radius * Math.sin(startAngle);
+                    const x2 = radius * Math.cos(endAngle);
+                    const y2 = radius * Math.sin(endAngle);
+                    
+                    const pathData = sections.length === 1 ? `M -${radius},0 A${radius},${radius} 0 1,1 ${radius},0 A${radius},${radius} 0 1,1 -${radius},0` :
+                        `M0,0 L${x1},${y1} A${radius},${radius} 0 0,1 ${x2},${y2} Z`;
+                    
+                    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                    path.setAttribute("d", pathData);
+
+                    // Use purple for component level (level 1) and blue for indicator level (level 2+)
+                    if (level === 1) {
+                        // Shades of purple (hue = 270)
+                        path.setAttribute("fill", `hsl(270, 80%, ${(i / sections.length) * 40 + 30}%)`);
+                    } else {
+                        // Shades of blue (hue = 220)
+                        path.setAttribute("fill", `hsl(220, 80%, ${(i / sections.length) * 40 + 30}%)`);
+                    }
+
+                    path.style.cursor = "pointer";
+                    path.addEventListener("mouseover", () => path.style.fillOpacity = 0.7);
+                    path.addEventListener("mouseout", () => path.style.fillOpacity = 1);
+                    
+                    if (level < 3) {
+                        path.addEventListener("click", () => handleClick(section, level));
+                    } else {
+                        path.addEventListener("click", () => alert(`${section} leads to indicator link`));
+                    }
+                    container.appendChild(path);
+                    
+                    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    let textX, textY;
+
+                    if (sections.length === 2) {
+                        // Special case for 2 sections: place labels at 90 degrees from the midpoint
+                        const midAngle = (startAngle + endAngle) / 2;
+                        textX = (radius * 0.7) * Math.cos(midAngle);
+                        textY = (radius * 0.7) * Math.sin(midAngle);
+                    } else {
+                        // Default case: place labels at the midpoint of the arc
+                        textX = (x1 + x2) / 2 * 0.7;
+                        textY = (y1 + y2) / 2 * 0.7;
+                    }
+
+                    text.setAttribute("x", textX);
+                    text.setAttribute("y", textY);
+                    text.setAttribute("font-size", "12");
+                    text.setAttribute("fill", "#fff");
+                    text.setAttribute("text-anchor", "middle");
+                    text.textContent = section;
+                    container.appendChild(text);
+                });
+                
+                if (hasCenter) {
+                    const centerCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                    centerCircle.setAttribute("cx", 0);
+                    centerCircle.setAttribute("cy", 0);
+                    centerCircle.setAttribute("r", 40);
+                    centerCircle.setAttribute("fill", "#4B0082"); // Dark purple for the center circle
+                    centerCircle.style.cursor = "pointer";
+                    centerCircle.addEventListener("click", () => handleClick("Theme 6", 1));
+                    container.appendChild(centerCircle);
+                    
+                    const centerText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    centerText.setAttribute("x", 0);
+                    centerText.setAttribute("y", 5);
+                    centerText.setAttribute("font-size", "12");
+                    centerText.setAttribute("fill", "#fff");
+                    centerText.setAttribute("text-anchor", "middle");
+                    centerText.textContent = "Theme 6";
+                    container.appendChild(centerText);
+                }
+                
+                container.style.opacity = 1;
+            }, 300);
+        }
+
+        function handleClick(section, level) {
+            history.push({ section, level });
+            const numSubsections = initialSections[section] || 3;
+            const label = level === 1 ? "Component" : "Indicator";
+            const subsections = Array.from({ length: numSubsections }, (_, i) => `${label} ${i + 1}`);
+            drawCircle(subsections, level + 1);
+            document.getElementById("backButton").style.display = "block";
+        }
+
+        function goBack() {
+            if (history.length > 0) {
+                history.pop(); // Remove the current level from history
+            }
+            
+            if (history.length === 0) {
+                // If no history left, go back to the initial view
+                drawCircle(Object.keys(initialSections), 1, true);
+                document.getElementById("backButton").style.display = "none";
+            } else {
+                // Otherwise, go back to the previous level
+                const lastState = history[history.length - 1];
+                const numSubsections = initialSections[lastState.section] || 3;
+                const label = lastState.level === 1 ? "Component" : "Indicator";
+                const subsections = Array.from({ length: numSubsections }, (_, i) => `${label} ${i + 1}`);
+                drawCircle(subsections, lastState.level);
+            }
+        }
+
+        drawCircle(Object.keys(initialSections), 1, true);
+    </script>
+</body>
+</html>
